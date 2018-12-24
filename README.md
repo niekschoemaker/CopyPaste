@@ -9,15 +9,15 @@ Syntax - Options:
 
 *     each true/false - default: trueCheck radius from each entity
 *     method building/proximity - default: proximity
-          Choose the type of mechanics to use to copy a building.
-          Building will only copy the current building.
-          Proximity will copy by proximity search, current building or not it will copy everything.
+Choose the type of mechanics to use to copy a building.
+Building will only copy the current building.
+Proximity will copy by proximity search, current building or not it will copy everything.
 *     radius XX - default: 3
-          Sets the radius to search for entities around each building parts & deployables
+Sets the radius to search for entities around each building parts & deployables
 *     share true/false - default: false
-          Set to copy data CodeLocks, BuildingPrivileges, SleepingBag
+Set to copy data CodeLocks, BuildingPrivileges, SleepingBag
 *     tree true/false - default: false
-          Set to copy trees and resources
+Set to copy trees and resources
 
 **Paste**
 
