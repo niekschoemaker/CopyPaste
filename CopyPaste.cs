@@ -17,7 +17,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Copy Paste", "Reneb/Misstake", "4.6.8", ResourceId = 716)]
+    [Info("Copy Paste", "Reneb & Misstake", "4.0.0", ResourceId = 716)]
     [Description("Copy and paste buildings to save them or move them")]
 	
     public class CopyPaste : RustPlugin
@@ -1022,14 +1022,17 @@ namespace Oxide.Plugins
                 if (ioEntity != null)
                 {
                     var ioData = data["IOEntity"] as Dictionary<string, object>;
+
                     ioData.Add("entity", ioEntity);
                     ioData.Add("newId", ioEntity.net.ID);
+
                     var electricalBranch = ioEntity.GetComponentInParent<ElectricalBranch>();
                     if (electricalBranch != null)
                     {
                         electricalBranch.branchAmount = Convert.ToInt32(ioData["branchAmount"]);
                     }
 
+                    // Realized counter.targetCounterNumber is private, leaving it in in case signature changes.
                     /*var counter = ioEntity.GetComponentInParent<PowerCounter>();
                     if (counter != null)
                     {
@@ -1071,27 +1074,27 @@ namespace Oxide.Plugins
                 pastedEntities.Add(entity);
             }
 
+            // For IO connection the new ID is needed so linking is performed after the paste is done.
             foreach (var ioData in ioEntities.Values)
             {
                 var eulerRotation = new Vector3(0f, RotationCorrection, 0f);
                 var quaternionRotation = Quaternion.EulerRotation(eulerRotation);
 
-                IOEntity ioEntity = ioData["entity"] as IOEntity;
-                var inputsList = ioData["inputs"] as List<object>;
-                var inputs = inputsList;
+                var ioEntity = ioData["entity"] as IOEntity;
+                var inputs = ioData["inputs"] as List<object>;
                 if (inputs != null && inputs.Count > 0)
                 {
                     for (int index = 0; index < inputs.Count; index++)
                     {
                         var input = inputs[index] as Dictionary<string, object>;
-                        var connectedOldId = Convert.ToUInt32(input["connectedID"]);
+                        uint oldId = Convert.ToUInt32(input["connectedID"]);
 
-                        if (ioEntities.ContainsKey(connectedOldId))
+                        if (ioEntities.ContainsKey(oldId))
                         {
                             if (ioEntity.inputs[index] == null)
                                 ioEntity.inputs[index] = new IOEntity.IOSlot();
 
-                            var ioConnection = ioEntities[connectedOldId];
+                            Dictionary<string, object> ioConnection = ioEntities[oldId];
 
                             ioEntity.inputs[index].connectedTo.entityRef.uid = Convert.ToUInt32(ioConnection["newId"]);
                             ioEntity.inputs[index].connectedToSlot = Convert.ToInt32(input["connectedToSlot"]);
@@ -1116,7 +1119,7 @@ namespace Oxide.Plugins
                             if (ioEntity.outputs[index] == null)
                                 ioEntity.outputs[index] = new IOEntity.IOSlot();
 
-                            var ioConnection = ioEntities[connectedOldId];
+                            Dictionary<string, object> ioConnection = ioEntities[connectedOldId];
 
                             ioEntity.outputs[index].connectedTo.entityRef.uid = Convert.ToUInt32(ioConnection["newId"]);
                             ioEntity.outputs[index].connectedToSlot = Convert.ToInt32(output["connectedToSlot"]);
@@ -1130,10 +1133,14 @@ namespace Oxide.Plugins
                                 {
                                     if (ioEntity.outputs[index].linePoints == null || ioEntity.outputs[index].linePoints.Length != linePoints.Count)
                                         ioEntity.outputs[index].linePoints = new Vector3[linePoints.Count];
-                                    for (int index2 = 0; index2 < linePoints.Count; index2++)
+                                    for (var index2 = 0; index2 < linePoints.Count; index2++)
                                     {
                                         var linePoint = linePoints[index2] as Dictionary<string, object>;
-                                        var normalizedPos = quaternionRotation * (new Vector3(Convert.ToSingle(linePoint["x"]), Convert.ToSingle(linePoint["y"]) + heightAdj, Convert.ToSingle(linePoint["z"]))) + startPos;
+                                        // Get the relative positions (normalized) and convert it to an actual position.
+                                        var normalizedPos =
+                                            quaternionRotation * (new Vector3(Convert.ToSingle(linePoint["x"]),
+                                                Convert.ToSingle(linePoint["y"]) + heightAdj,
+                                                Convert.ToSingle(linePoint["z"]))) + startPos;
                                         ioEntity.outputs[index].linePoints[index2] = normalizedPos;
                                     }
                                     ioEntity.MarkDirtyForceUpdateOutputs();
