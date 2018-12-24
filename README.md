@@ -11,8 +11,11 @@ Syntax - Options:
 Check radius from each entity
 
 * method building/proximity - default: proximity
+
 Choose the type of mechanics to use to copy a building.
+
 Building will only copy the current building.
+
 Proximity will copy by proximity search, current building or not it will copy everything.
 * radius XX - default: 3
 Sets the radius to search for entities around each building parts & deployables
