@@ -1,9 +1,11 @@
 # Commands
 **Copy**
 
-/copy NAME options values - Copy a building</br>
-*Example:* /copy home radius 3 method building</br>
-*Short example:* /copy home r 3 m building
+```
+/copy NAME options values - Copy a building
+Example: /copy home radius 3 method building
+Short example: /copy home r 3 m building
+```
 
 <u>Syntax - Options:</u>
 
@@ -22,9 +24,11 @@
 
 **Paste**
 
+```
 /paste NAME options values - Paste a building
 Example: /paste home auth true stability false
 Short example: /paste home a true s false
+```
 
 <u>Syntax - Options:</u>
 
