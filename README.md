@@ -1,5 +1,5 @@
-Commands
-Copy
+# Commands
+**Copy**
 
 /copy NAME options values - Copy a building
 Example: /copy home radius 3 method building
@@ -11,20 +11,21 @@ Syntax - Options:
 Check radius from each entity
 
 * method building/proximity - default: proximity
-
 Choose the type of mechanics to use to copy a building.
-
 Building will only copy the current building.
-
 Proximity will copy by proximity search, current building or not it will copy everything.
+
 * radius XX - default: 3
 Sets the radius to search for entities around each building parts & deployables
+
 * share true/false - default: false
 Set to copy data CodeLocks, BuildingPrivileges, SleepingBag
+
 * tree true/false - default: false
 Set to copy trees and resources
 
-Paste
+
+**Paste**
 
 /paste NAME options values - Paste a building
 Example: /paste home auth true stability false
@@ -40,7 +41,7 @@ Syntax - Options:
     stability true/false - default: trueSet false to ignore stability system
     vending true/false - default: falseSet to paste sellings, name and broadcasting for Vending Machine
 
-Pasteback
+**Pasteback**
 
 /pasteback NAME options values - Paste on old place a building where it was when it was saved
 Example: /pasteback home auth true stability false
@@ -55,13 +56,12 @@ Syntax - Options:
     stability true/false - default: trueSet false to ignore stability system
     vending true/false - default: falseSet to paste sellings, name and broadcasting for Vending Machine
 
-Other
+**Other**
 
 /undo - Removes what you've last pasted
 /list - List of stuctures (from folder oxide/data/copypaste)
 
-Permissions
-This plugin uses Oxide's permission system. To assign a permission, use oxide.grant <user or group> <name or steam id> <permission>. To remove a permission, use oxide.revoke <user or group> <name or steam id> <permission>.
+# Permissions
 
     copypaste.copy
     copypaste.list
@@ -69,7 +69,7 @@ This plugin uses Oxide's permission system. To assign a permission, use oxide.gr
     copypaste.pasteback
     copypaste.undo
 
-API
+# API
 
 TryCopyFromSteamID(ulong userID, string filename, string[] args)
 TryPasteFromSteamID(ulong userID, string filename, string[] args)
