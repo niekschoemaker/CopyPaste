@@ -344,6 +344,7 @@ namespace Oxide.Plugins
             if (saveTree)
                 currentLayer |= LayerMask.GetMask("Tree");
 
+            var count = 0;
             while (current < checkFrom.Count)
             {
                 List<BaseEntity> list = Pool.GetList<BaseEntity>();
@@ -370,7 +371,7 @@ namespace Oxide.Plugins
 
                     if (eachToEach && !checkFrom.Contains(entity.transform.position))
                         checkFrom.Add(entity.transform.position);
-
+                    ++count;
                     rawData.Add(EntityData(entity, sourcePos, sourceRot, entity.transform.position, entity.transform.rotation.ToEulerAngles(), RotationCorrection, saveShare));
                 }
 
@@ -558,6 +559,7 @@ namespace Oxide.Plugins
 
             if (ioEntity != null)
             {
+                var ioData = new Dictionary<string, object>();
                 List<object> inputs = new List<object>();
                 foreach (IOEntity.IOSlot input in ioEntity.inputs)
                 {
@@ -571,6 +573,7 @@ namespace Oxide.Plugins
                     };
                     inputs.Add(ioConnection);
                 }
+                ioData.Add("inputs", inputs);
 
                 List<object> outputs = new List<object>();
                 foreach (IOEntity.IOSlot output in ioEntity.outputs)
@@ -581,17 +584,43 @@ namespace Oxide.Plugins
                         {"connectedToSlot", output.connectedToSlot },
                         {"niceName", output.niceName },
                         {"type", (int)output.type },
-
                     };
+
+                    var linePoints = new List<Vector3>();
+                    if (output.linePoints != null)
+                    {
+                        // Since Vector3 is struct should be able to simply save the Vecot directly.
+                        foreach (Vector3 linePoint in output.linePoints)
+                        {
+                            linePoints.Add(NormalizePosition(sourcePos, linePoint, diffRot));
+                            PrintToConsole(RustCore.FindPlayer("Misstake"), linePoint.ToString());
+                        }
+                    }
+                    ioConnection.Add("linePoints", linePoints);
+
                     outputs.Add(ioConnection);
                 }
-
-                data.Add("IOEntity", new Dictionary<string, object>
+                ioData.Add("outputs", outputs);
+                ioData.Add("oldID", ioEntity.net.ID);
+                var electricalBranch = ioEntity.GetComponentInParent<ElectricalBranch>();
+                if (electricalBranch != null)
                 {
-                    {"original ID", ioEntity.net.ID },
-                    {"inputs", inputs },
-                    {"outputs", outputs }
-                });
+                    ioData.Add("branchAmount", electricalBranch.branchAmount);
+                }
+
+                /*var counter = ioEntity.GetComponentInParent<PowerCounter>();
+                if (counter != null)
+                {
+                    ioData.Add("targetNumber", counter.GetTarget());
+                }*/
+
+                var timer = ioEntity.GetComponentInParent<TimerSwitch>();
+                if (timer != null)
+                {
+                    ioData.Add("timerLength", timer.timerLength);
+                }
+
+                data.Add("IOEntity", ioData);
             }
 
             return data;
@@ -700,7 +729,7 @@ namespace Oxide.Plugins
             return transformedPos;
         }
 
-        private List<BaseEntity> Paste(List<Dictionary<string, object>> entities, Dictionary<string, object> protocol, Vector3 startPos, BasePlayer player, bool stability)
+        private List<BaseEntity> Paste(List<Dictionary<string, object>> entities, Dictionary<string, object> protocol, Vector3 startPos, BasePlayer player, bool stability, float RotationCorrection, float heightAdj)
         {
             uint buildingID = 0;
             var pastedEntities = new List<BaseEntity>();
@@ -995,7 +1024,25 @@ namespace Oxide.Plugins
                     var ioData = data["IOEntity"] as Dictionary<string, object>;
                     ioData.Add("entity", ioEntity);
                     ioData.Add("newId", ioEntity.net.ID);
-                    ioEntities.Add(Convert.ToUInt32(ioData["original ID"]), ioData);
+                    var electricalBranch = ioEntity.GetComponentInParent<ElectricalBranch>();
+                    if (electricalBranch != null)
+                    {
+                        electricalBranch.branchAmount = Convert.ToInt32(ioData["branchAmount"]);
+                    }
+
+                    /*var counter = ioEntity.GetComponentInParent<PowerCounter>();
+                    if (counter != null)
+                    {
+                        counter.targetCounterNumber = Convert.ToInt32(ioData["targetNumber"]);
+                    }*/
+
+                    var timer = ioEntity.GetComponentInParent<TimerSwitch>();
+                    if (timer != null)
+                    {
+                        timer.timerLength = Convert.ToInt32(ioData["timerLength"]);
+                    }
+
+                    ioEntities.Add(Convert.ToUInt32(ioData["oldID"]), ioData);
                 }
 
                 var flagsData = new Dictionary<string, object>();
@@ -1026,6 +1073,9 @@ namespace Oxide.Plugins
 
             foreach (var ioData in ioEntities.Values)
             {
+                var eulerRotation = new Vector3(0f, RotationCorrection, 0f);
+                var quaternionRotation = Quaternion.EulerRotation(eulerRotation);
+
                 IOEntity ioEntity = ioData["entity"] as IOEntity;
                 var inputsList = ioData["inputs"] as List<object>;
                 var inputs = inputsList;
@@ -1072,6 +1122,23 @@ namespace Oxide.Plugins
                             ioEntity.outputs[index].connectedToSlot = Convert.ToInt32(output["connectedToSlot"]);
                             ioEntity.outputs[index].niceName = output["niceName"] as string;
                             ioEntity.outputs[index].type = (IOEntity.IOType)output["type"];
+
+                            if (output.ContainsKey("linePoints"))
+                            {
+                                var linePoints = output["linePoints"] as List<object>;
+                                if (linePoints != null)
+                                {
+                                    if (ioEntity.outputs[index].linePoints == null || ioEntity.outputs[index].linePoints.Length != linePoints.Count)
+                                        ioEntity.outputs[index].linePoints = new Vector3[linePoints.Count];
+                                    for (int index2 = 0; index2 < linePoints.Count; index2++)
+                                    {
+                                        var linePoint = linePoints[index2] as Dictionary<string, object>;
+                                        var normalizedPos = quaternionRotation * (new Vector3(Convert.ToSingle(linePoint["x"]), Convert.ToSingle(linePoint["y"]) + heightAdj, Convert.ToSingle(linePoint["z"]))) + startPos;
+                                        ioEntity.outputs[index].linePoints[index2] = normalizedPos;
+                                    }
+                                    ioEntity.MarkDirtyForceUpdateOutputs();
+                                }
+                            }
                         }
                     }
                 }
@@ -1373,7 +1440,7 @@ namespace Oxide.Plugins
 			if(data["protocol"] != null)
 				protocol = data["protocol"] as Dictionary<string, object>;
 			
-            return Paste(preloadData, protocol, startPos, player, stability);
+            return Paste(preloadData, protocol, startPos, player, stability, RotationCorrection, autoHeight ? heightAdj : 0);
         }
 
         private List<BaseEntity> TryPasteSlots(BaseEntity ent, Dictionary<string, object> structure)
