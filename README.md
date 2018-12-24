@@ -91,3 +91,7 @@ bool BuyBuilding(BasePlayer player, string buildingName)
     return true;
 }
 ```
+
+# Credits
+* **Reneb**, the original author of this plugin
+* **MiRror**, the previous maintainer of this plugin
