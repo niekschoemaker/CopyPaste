@@ -7,7 +7,7 @@ Example: /copy home radius 3 method building
 Short example: /copy home r 3 m building
 ```
 
-<u>Syntax - Options:</u>
+Syntax - Options:
 
 * **each true/false** - *default: true* - Check radius from each entity
 
@@ -30,7 +30,7 @@ Example: /paste home auth true stability false
 Short example: /paste home a true s false
 ```
 
-<u>Syntax - Options:</u>
+Syntax - Options:
 
 * **auth true/false** - *default: false* - Authorize player in all cupboards
 * **blockcollision XX** - *default: 0* - Checks in XX radius if there is something that could collide with the new building, if so, blocks the build. 0 is to deactivate the detection.
@@ -46,7 +46,7 @@ Short example: /paste home a true s false
 Example: /pasteback home auth true stability false
 Short example: /pasteback home a true s false
 
-<u>Syntax - Options:</u>
+Syntax - Options:
 
 * **auth true/false** - *default: false* - Authorize player in all cupboards
 * **deployables true/false** - *default: true* - Set to paste the deployables
