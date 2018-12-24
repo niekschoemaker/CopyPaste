@@ -6,12 +6,12 @@ Example: /copy home radius 3 method building
 Short example: /copy home r 3 m building
 
 Syntax - Options:
->     each true/false - default: trueCheck radius from each entity
+each true/false - default: trueCheck radius from each entity
 
->     method building/proximity - default: proximityChoose the type of mechanics to use to copy a building.Building will only copy the current building.Proximity will copy by proximity search, current building or not it will copy everything.
->     radius XX - default: 3Sets the radius to search for entities around each building parts & deployables
->     share true/false - default: falseSet to copy data CodeLocks, BuildingPrivileges, SleepingBag
->     tree true/false - default: falseSet to copy trees and resources
+method building/proximity - default: proximityChoose the type of mechanics to use to copy a building.Building will only copy the current building.Proximity will copy by proximity search, current building or not it will copy everything.
+radius XX - default: 3Sets the radius to search for entities around each building parts & deployables
+share true/false - default: falseSet to copy data CodeLocks, BuildingPrivileges, SleepingBag
+tree true/false - default: falseSet to copy trees and resources
 
 Paste
 
