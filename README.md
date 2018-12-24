@@ -1,4 +1,4 @@
-Commands
+# Commands
 Copy
 
 /copy NAME options values - Copy a building
@@ -49,7 +49,7 @@ Other
 /undo - Removes what you've last pasted
 /list - List of stuctures (from folder oxide/data/copypaste)
 
-Permissions
+# Permissions
 This plugin uses Oxide's permission system. To assign a permission, use oxide.grant <user or group> <name or steam id> <permission>. To remove a permission, use oxide.revoke <user or group> <name or steam id> <permission>.
 
     copypaste.copy
@@ -58,7 +58,7 @@ This plugin uses Oxide's permission system. To assign a permission, use oxide.gr
     copypaste.pasteback
     copypaste.undo
 
-API
+# API
 
 TryCopyFromSteamID(ulong userID, string filename, string[] args)
 TryPasteFromSteamID(ulong userID, string filename, string[] args)
