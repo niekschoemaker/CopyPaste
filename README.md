@@ -7,7 +7,7 @@ Short example: /copy home r 3 m building
 
 Syntax - Options:
 
-*     each true/false - default: trueCheck radius from each entity
+*     `each true/false - default: trueCheck radius from each entity`
 *     method building/proximity - default: proximity
 Choose the type of mechanics to use to copy a building.
 Building will only copy the current building.
