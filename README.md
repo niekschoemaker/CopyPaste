@@ -10,15 +10,9 @@ Short example: /copy home r 3 m building
 Syntax - Options:
 
 * **each true/false** - *default: true* - Check radius from each entity
-
-* **method building/proximity** - *default: proximity* - Choose the type of mechanics to use to copy a building.</br>
-     **Building**: Only copy the current building.</br>
-     **Proximity**: Copy all blocks close to the building. (Some deployables can be missing with Building also use proximity in these cases)
-
+* **method building/proximity** - *default: proximity* - Choose the type of mechanics to use to copy a building - **Building**: Only copy the current building. **Proximity**: Copy all blocks close to the building. (Some deployables can be missing with Building also use proximity in these cases)
 * **radius XX** - *default: 3* - Sets the radius to search for entities around each building parts & deployables
-
 * **share true/false** - *default: false* - Set to copy data CodeLocks, BuildingPrivileges, SleepingBag
-
 * ** tree true/false** - *default: false* - Set to copy trees and resources
 
 
