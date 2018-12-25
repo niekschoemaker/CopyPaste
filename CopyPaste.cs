@@ -17,7 +17,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Copy Paste", "Reneb & MiRror & Misstake", "4.0.1", ResourceId = 716)]
+    [Info("Copy Paste", "Reneb & MiRror & Misstake", "4.0.2", ResourceId = 716)]
     [Description("Copy and paste buildings to save them or move them")]
 	
     public class CopyPaste : RustPlugin
