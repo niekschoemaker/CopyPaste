@@ -1045,6 +1045,13 @@ namespace Oxide.Plugins
                         timer.timerLength = Convert.ToInt32(ioData["timerLength"]);
                     }
 
+                    var doorManipulator = ioEntity.GetComponentInParent<CustomDoorManipulator>();
+                    if (doorManipulator != null)
+                    {
+                        Door door = doorManipulator.FindDoor(true);
+                        doorManipulator.SetTargetDoor(door);
+                    }
+
                     ioEntities.Add(Convert.ToUInt32(ioData["oldID"]), ioData);
                 }
 
@@ -1143,9 +1150,9 @@ namespace Oxide.Plugins
                                                 Convert.ToSingle(linePoint["z"]))) + startPos;
                                         ioEntity.outputs[index].linePoints[index2] = normalizedPos;
                                     }
-                                    ioEntity.MarkDirtyForceUpdateOutputs();
                                 }
                             }
+                            ioEntity.MarkDirtyForceUpdateOutputs();
                         }
                     }
                 }
