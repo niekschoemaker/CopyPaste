@@ -17,7 +17,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Copy Paste", "Reneb & MiRror & Misstake", "4.0.2", ResourceId = 716)]
+    [Info("Copy Paste", "Reneb & MiRror & Misstake", "4.0.3", ResourceId = 716)]
     [Description("Copy and paste buildings to save them or move them")]
 	
     public class CopyPaste : RustPlugin
@@ -560,19 +560,15 @@ namespace Oxide.Plugins
             if (ioEntity != null)
             {
                 var ioData = new Dictionary<string, object>();
-                List<object> inputs = new List<object>();
-                foreach (IOEntity.IOSlot input in ioEntity.inputs)
-                {
-                    Dictionary<string, object> ioConnection = new Dictionary<string, object>
+                List<object> inputs = ioEntity.inputs.Select(input => new Dictionary<string, object>
                     {
-                        {"connectedID", input.connectedTo.entityRef.uid },
-                        {"connectedToSlot", input.connectedToSlot },
-                        {"niceName", input.niceName },
-                        {"type", (int)input.type },
-
-                    };
-                    inputs.Add(ioConnection);
-                }
+                        {"connectedID", input.connectedTo.entityRef.uid},
+                        {"connectedToSlot", input.connectedToSlot},
+                        {"niceName", input.niceName},
+                        {"type", (int) input.type},
+                    })
+                    .Cast<object>()
+                    .ToList();
                 ioData.Add("inputs", inputs);
 
                 List<object> outputs = new List<object>();
@@ -593,7 +589,6 @@ namespace Oxide.Plugins
                         foreach (Vector3 linePoint in output.linePoints)
                         {
                             linePoints.Add(NormalizePosition(sourcePos, linePoint, diffRot));
-                            PrintToConsole(RustCore.FindPlayer("Misstake"), linePoint.ToString());
                         }
                     }
                     ioConnection.Add("linePoints", linePoints);
@@ -1021,7 +1016,12 @@ namespace Oxide.Plugins
                 var ioEntity = entity.GetComponentInParent<IOEntity>();
                 if (ioEntity != null)
                 {
-                    var ioData = data["IOEntity"] as Dictionary<string, object>;
+                    var ioData = new Dictionary<string, object>();
+
+                    if (data.ContainsKey("IOEntity"))
+                    {
+                        ioData = data["IOEntity"] as Dictionary<string, object> ?? new Dictionary<string, object>();
+                    }
 
                     ioData.Add("entity", ioEntity);
                     ioData.Add("newId", ioEntity.net.ID);
@@ -1087,8 +1087,15 @@ namespace Oxide.Plugins
                 var eulerRotation = new Vector3(0f, RotationCorrection, 0f);
                 var quaternionRotation = Quaternion.EulerRotation(eulerRotation);
 
+                if (!ioData.ContainsKey("entity"))
+                    continue;
+
                 var ioEntity = ioData["entity"] as IOEntity;
-                var inputs = ioData["inputs"] as List<object>;
+
+                List<object> inputs = null;
+                if (ioData.ContainsKey("inputs"))
+                    inputs = ioData["inputs"] as List<object>;
+
                 if (inputs != null && inputs.Count > 0)
                 {
                     for (int index = 0; index < inputs.Count; index++)
@@ -1113,7 +1120,10 @@ namespace Oxide.Plugins
                     }
                 }
 
-                var outputs = ioData["outputs"] as List<object>;
+                List<object> outputs = null;
+                if (ioData.ContainsKey("outputs"))
+                    outputs = ioData["outputs"] as List<object>;
+
                 if (outputs != null && outputs.Count > 0)
                 {
                     for (int index = 0; index < outputs.Count; index++)
