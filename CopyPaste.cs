@@ -18,7 +18,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Copy Paste", "Reneb & MiRror & Misstake", "4.1.0", ResourceId = 716)]
+    [Info("Copy Paste", "Reneb & MiRror & Misstake", "4.1.1", ResourceId = 716)]
     [Description("Copy and paste buildings to save them or move them")]
 	
     public class CopyPaste : RustPlugin
@@ -1065,7 +1065,7 @@ namespace Oxide.Plugins
                     ioData.Add("newId", ioEntity.net.ID);
 
                     var electricalBranch = ioEntity.GetComponentInParent<ElectricalBranch>();
-                    if (electricalBranch != null)
+                    if (electricalBranch != null && ioData.ContainsKey("branchAmount"))
                     {
                         electricalBranch.branchAmount = Convert.ToInt32(ioData["branchAmount"]);
                     }
@@ -1078,7 +1078,7 @@ namespace Oxide.Plugins
                     }*/
 
                     var timer = ioEntity.GetComponentInParent<TimerSwitch>();
-                    if (timer != null)
+                    if (timer != null && ioData.ContainsKey("timerLength"))
                     {
                         timer.timerLength = Convert.ToInt32(ioData["timerLength"]);
                     }
@@ -1090,7 +1090,8 @@ namespace Oxide.Plugins
                         doorManipulator.SetTargetDoor(door);
                     }
 
-                    ioEntities.Add(Convert.ToUInt32(ioData["oldID"]), ioData);
+                    if(ioData.ContainsKey("oldID"))
+                        ioEntities.Add(Convert.ToUInt32(ioData["oldID"]), ioData);
                 }
 
                 var flagsData = new Dictionary<string, object>();
@@ -1150,7 +1151,11 @@ namespace Oxide.Plugins
                         for (int index = 0; index < inputs.Count; index++)
                         {
                             var input = inputs[index] as Dictionary<string, object>;
-                            uint oldId = Convert.ToUInt32(input["connectedID"]);
+                            object oldIdObject;
+                            if (!input.TryGetValue("connectedID", out oldIdObject))
+                                continue;
+
+                            uint oldId = Convert.ToUInt32(oldIdObject);
 
                             if (ioEntities.ContainsKey(oldId))
                             {
@@ -1159,10 +1164,19 @@ namespace Oxide.Plugins
 
                                 Dictionary<string, object> ioConnection = ioEntities[oldId];
 
-                                ioEntity.inputs[index].connectedTo.entityRef.uid = Convert.ToUInt32(ioConnection["newId"]);
-                                ioEntity.inputs[index].connectedToSlot = Convert.ToInt32(input["connectedToSlot"]);
-                                ioEntity.inputs[index].niceName = input["niceName"] as string;
-                                ioEntity.inputs[index].type = (IOEntity.IOType)input["type"];
+                                object temp;
+
+                                if (ioConnection.TryGetValue("newId", out temp))
+                                    ioEntity.inputs[index].connectedTo.entityRef.uid = Convert.ToUInt32(temp);
+
+                                if (ioConnection.TryGetValue("connectedToSlot", out temp))
+                                    ioEntity.inputs[index].connectedToSlot = Convert.ToInt32(temp);
+
+                                if (ioConnection.TryGetValue("niceName", out temp))
+                                    ioEntity.inputs[index].niceName = temp as string;
+
+                                if (ioConnection.TryGetValue("type", out temp))
+                                    ioEntity.inputs[index].type = (IOEntity.IOType)temp;
                             }
 
 
@@ -1187,10 +1201,19 @@ namespace Oxide.Plugins
 
                                 Dictionary<string, object> ioConnection = ioEntities[connectedOldId];
 
-                                ioEntity.outputs[index].connectedTo.entityRef.uid = Convert.ToUInt32(ioConnection["newId"]);
-                                ioEntity.outputs[index].connectedToSlot = Convert.ToInt32(output["connectedToSlot"]);
-                                ioEntity.outputs[index].niceName = output["niceName"] as string;
-                                ioEntity.outputs[index].type = (IOEntity.IOType)output["type"];
+                                object temp;
+
+                                if (ioConnection.TryGetValue("newId", out temp))
+                                    ioEntity.outputs[index].connectedTo.entityRef.uid = Convert.ToUInt32(temp);
+
+                                if (ioConnection.TryGetValue("connectedToSlot", out temp))
+                                    ioEntity.outputs[index].connectedToSlot = Convert.ToInt32(temp);
+
+                                if (ioConnection.TryGetValue("niceName", out temp))
+                                    ioEntity.outputs[index].niceName = temp as string;
+
+                                if (ioConnection.TryGetValue("type", out temp))
+                                    ioEntity.outputs[index].type = (IOEntity.IOType)temp;
 
                                 if (output.ContainsKey("linePoints"))
                                 {
