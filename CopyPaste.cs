@@ -18,7 +18,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Copy Paste", "Reneb & MiRror & Misstake", "4.1.2", ResourceId = 716)]
+    [Info("Copy Paste", "Reneb & MiRror & Misstake", "4.1.3", ResourceId = 716)]
     [Description("Copy and paste buildings to save them or move them")]
 	
     public class CopyPaste : RustPlugin
@@ -36,7 +36,9 @@ namespace Oxide.Plugins
 					 , serverID 			= "Server"
 					 , subDirectory 		= "copypaste/";
 
-        private const int CopyBatchSize = 500;
+        private const int CopyBatchSize = 250;
+        private const int PasteBatchSize = 50;
+        private const int UndoBatchSize = 50;
 
         private Dictionary<string, Stack<List<BaseEntity>>> lastPastes = new Dictionary<string, Stack<List<BaseEntity>>>();
 
@@ -211,7 +213,7 @@ namespace Oxide.Plugins
             if (!Physics.Raycast(player.eyes.HeadRay(), out hit, 1000f, rayCopy))
                 return Lang("NO_ENTITY_RAY", player.UserIDString);
 
-            return TryCopy(hit.point, hit.GetEntity().GetNetworkRotation().eulerAngles, filename, DegreeToRadian(player.GetNetworkRotation().eulerAngles.y), args);
+            return TryCopy(hit.point, hit.GetEntity().GetNetworkRotation().eulerAngles, filename, DegreeToRadian(player.GetNetworkRotation().eulerAngles.y), args, player);
         }
 
         private object TryPasteFromSteamID(ulong userID, string filename, string[] args)
@@ -273,34 +275,27 @@ namespace Oxide.Plugins
             if (success is string)
                 return (string)success;
 
-            if (!lastPastes.ContainsKey(userIDString))
-                lastPastes[userIDString] = new Stack<List<BaseEntity>>();
-
-            lastPastes[userIDString].Push((List<BaseEntity>)success);
-
             return true;
         }
 
         private object cmdUndo(string userIDString, string[] args)
         {
+            var player = BasePlayer.Find(userIDString);
             if (!lastPastes.ContainsKey(userIDString))
                 return Lang("NO_PASTED_STRUCTURE", userIDString);
 
             HashSet<BaseEntity> entities = new HashSet<BaseEntity>(lastPastes[userIDString].Pop().ToList());
 
-            DoUndo(entities);
-
-            if (lastPastes[userIDString].Count == 0)
-                lastPastes.Remove(userIDString);
+            UndoLoop(entities, player);
 
             return true;
         }
 
-        private void DoUndo(HashSet<BaseEntity> entities, int count = 0)
+        private void UndoLoop(HashSet<BaseEntity> entities, BasePlayer player, int count = 0)
         {
 
             entities
-                .Take(100)
+                .Take(UndoBatchSize)
                 .ToList()
                 .ForEach(p =>
             {
@@ -312,19 +307,28 @@ namespace Oxide.Plugins
             // If it gets stuck in infinite loop break the loop.
             if (entities.Count == count)
             {
-                PrintError("Undo cancelled because of infinite loop.");
+                if (player != null)
+                    SendReply(player, "Undo cancelled because of infinite loop.");
+                else
+                    Puts("Undo cancelled because of infinite loop.");
                 return;
             }
 
             if(entities.Count > 0)
-                NextTick(() => DoUndo(entities, entities.Count));
+                NextTick(() => UndoLoop(entities, player, entities.Count));
             else
             {
-                Puts("Undo Complete.");
+                if (player != null)
+                    SendReply(player, Lang("UNDO_SUCCESS", player.UserIDString));
+                else
+                    Puts(Lang("UNDO_SUCCESS"));
+
+                if (lastPastes[player?.UserIDString ?? serverID].Count == 0)
+                    lastPastes.Remove(player?.UserIDString ?? serverID);
             }
         }
 
-        private object Copy(Vector3 sourcePos, Vector3 sourceRot, string filename, float RotationCorrection, CopyMechanics copyMechanics, float range, bool saveTree, bool saveShare, bool eachToEach)
+        private object Copy(Vector3 sourcePos, Vector3 sourceRot, string filename, float RotationCorrection, CopyMechanics copyMechanics, float range, bool saveTree, bool saveShare, bool eachToEach, BasePlayer player)
         {
             List<object> rawData = new List<object>();
             int currentLayer = copyLayer;
@@ -343,7 +347,8 @@ namespace Oxide.Plugins
                 CopyMechanics = copyMechanics,
                 EachToEach = eachToEach,
                 SourcePos = sourcePos,
-                SourceRot = sourceRot
+                SourceRot = sourceRot,
+                Player = player
             };
 
             copyData.CheckFrom.Push(sourcePos);
@@ -431,7 +436,7 @@ namespace Oxide.Plugins
                 };
 
                 Interface.Oxide.DataFileSystem.SaveDatafile(path);
-                Puts($"Copy complete. {copyData.RawData.Count} items copied.");
+                SendReply(copyData.Player, Lang("COPY_SUCCESS", copyData.Player.UserIDString, copyData.FileName));
             }
 
             return null;
@@ -792,17 +797,29 @@ namespace Oxide.Plugins
             var eulerRotation = new Vector3(0f, RotationCorrection, 0f);
             var quaternionRotation = Quaternion.Euler(eulerRotation);
 
-            DoPaste(entities, startPos, player, stability, quaternionRotation, ioEntities, buildingID, pastedEntities, isItemReplace, heightAdj, new List<StabilityEntity>());
+            var pasteData = new PasteData()
+            {
+                HeightAdj = heightAdj,
+                IsItemReplace = isItemReplace,
+                Entities = entities,
+                Player = player,
+                QuaternionRotation = quaternionRotation,
+                StartPos = startPos,
+                Stability = stability,
+            };
+
+
+
+            PasteLoop(pasteData);
 
             return pastedEntities;
         }
 
-        private void DoPaste(ICollection<Dictionary<string, object>> entities,
-            Vector3 startPos, BasePlayer player, bool stability,
-            Quaternion rotation, Dictionary<uint, Dictionary<string, object>> ioEntities, uint buildingID, List<BaseEntity> pastedEntities, bool isItemReplace, float heightAdj, List<StabilityEntity> stabilityEntities)
+        private void PasteLoop(PasteData pasteData)
         {
-            var todo = entities.Take(100).ToArray();
-
+            var entities = pasteData.Entities;
+            var todo = entities.Take(PasteBatchSize).ToArray();
+            var player = pasteData.Player;
 
             foreach (var data in todo)
             {
@@ -826,10 +843,10 @@ namespace Oxide.Plugins
                 entity.transform.position = pos;
                 entity.transform.rotation = rot;
 
-                if (player != null)
+                if (pasteData.Player != null)
                 {
-                    entity.SendMessage("SetDeployedBy", player, SendMessageOptions.DontRequireReceiver);
-                    entity.OwnerID = player.userID;
+                    entity.SendMessage("SetDeployedBy", pasteData.Player, SendMessageOptions.DontRequireReceiver);
+                    entity.OwnerID = pasteData.Player.userID;
                 }
 
                 BuildingBlock buildingBlock = entity.GetComponentInParent<BuildingBlock>();
@@ -838,7 +855,7 @@ namespace Oxide.Plugins
                 {
                     buildingBlock.blockDefinition = PrefabAttribute.server.Find<Construction>(buildingBlock.prefabID);
                     buildingBlock.SetGrade((BuildingGrade.Enum)data["grade"]);
-                    if(!stability)
+                    if(!pasteData.Stability)
                         buildingBlock.grounded = true;
 
                 }
@@ -847,10 +864,10 @@ namespace Oxide.Plugins
 
                 if (decayEntity != null)
                 {
-                    if (buildingID == 0)
-                        buildingID = BuildingManager.server.NewBuildingID();
+                    if (pasteData.BuildingID == 0)
+                        pasteData.BuildingID = BuildingManager.server.NewBuildingID();
 
-                    decayEntity.AttachToBuilding(buildingID);
+                    decayEntity.AttachToBuilding(pasteData.BuildingID);
                 }
 
                 StabilityEntity stabilityEntity = entity.GetComponentInParent<StabilityEntity>();
@@ -860,7 +877,7 @@ namespace Oxide.Plugins
                     if (!stabilityEntity.grounded)
                     {
                         stabilityEntity.grounded = true;
-                        stabilityEntities.Add(stabilityEntity);
+                        pasteData.StabilityEntities.Add(stabilityEntity);
                     }
                 }
 
@@ -872,7 +889,7 @@ namespace Oxide.Plugins
                 if (baseCombat != null)
                     baseCombat.ChangeHealth(baseCombat.MaxHealth());
 
-                pastedEntities.AddRange(TryPasteSlots(entity, data));
+                pasteData.PastedEntities.AddRange(TryPasteSlots(entity, data));
 
                 var box = entity.GetComponentInParent<StorageContainer>();
 
@@ -898,7 +915,7 @@ namespace Oxide.Plugins
                         var itemskin = ulong.Parse(item["skinid"].ToString());
                         var itemcondition = Convert.ToSingle(item["condition"]);
 
-                        if (isItemReplace)
+                        if (pasteData.IsItemReplace)
                             itemid = GetItemID(itemid);
 
                         var i = ItemManager.CreateByItemID(itemid, itemamount, itemskin);
@@ -914,7 +931,7 @@ namespace Oxide.Plugins
                             {
                                 int blueprintTarget = Convert.ToInt32(item["blueprintTarget"]);
 
-                                if (isItemReplace)
+                                if (pasteData.IsItemReplace)
                                     blueprintTarget = GetItemID(blueprintTarget);
 
                                 i.blueprintTarget = blueprintTarget;
@@ -933,7 +950,7 @@ namespace Oxide.Plugins
                                         var ammotype = int.Parse(magazine.Keys.ToArray()[0]);
                                         var ammoamount = int.Parse(magazine[ammotype.ToString()].ToString());
 
-                                        if (isItemReplace)
+                                        if (pasteData.IsItemReplace)
                                             ammotype = GetItemID(ammotype);
 
                                         projectiles.primaryMagazine.ammoType = ItemManager.FindItemDefinition(ammotype);
@@ -952,7 +969,7 @@ namespace Oxide.Plugins
 
                                             int contentsItemID = Convert.ToInt32(contents["id"]);
 
-                                            if (isItemReplace)
+                                            if (pasteData.IsItemReplace)
                                                 contentsItemID = GetItemID(contentsItemID);
 
                                             i.contents.AddItem(ItemManager.FindItemDefinition(contentsItemID), Convert.ToInt32(contents["amount"]));
@@ -1072,7 +1089,7 @@ namespace Oxide.Plugins
                         int itemToSellID = Convert.ToInt32(orderInfo["itemToSellID"]),
                             currencyID = Convert.ToInt32(orderInfo["currencyID"]);
 
-                        if (isItemReplace)
+                        if (pasteData.IsItemReplace)
                         {
                             itemToSellID = GetItemID(itemToSellID);
                             currencyID = GetItemID(currencyID);
@@ -1134,7 +1151,7 @@ namespace Oxide.Plugins
                     }
 
                     if(ioData.ContainsKey("oldID"))
-                        ioEntities.Add(Convert.ToUInt32(ioData["oldID"]), ioData);
+                        pasteData.IoEntities.Add(Convert.ToUInt32(ioData["oldID"]), ioData);
                 }
 
                 var flagsData = new Dictionary<string, object>();
@@ -1156,19 +1173,19 @@ namespace Oxide.Plugins
                     entity.SetFlag(flag.Key, flag.Value);
                 }
 
-                pastedEntities.Add(entity);
+                pasteData.PastedEntities.Add(entity);
             }
             if(entities.Count > 0)
-                NextTick(() => DoPaste(entities, startPos, player, stability, rotation, ioEntities, buildingID, pastedEntities, isItemReplace, heightAdj, stabilityEntities));
+                NextTick(() => PasteLoop(pasteData));
             else
             {
-                foreach (var entity in stabilityEntities)
+                foreach (var entity in pasteData.StabilityEntities)
                 {
                     entity.grounded = false;
                     entity.InitializeSupports();
                     entity.UpdateStability();
                 }
-                foreach (var ioData in ioEntities.Values)
+                foreach (var ioData in pasteData.IoEntities.Values)
                 {
 
                     if (!ioData.ContainsKey("entity"))
@@ -1191,12 +1208,12 @@ namespace Oxide.Plugins
 
                             uint oldId = Convert.ToUInt32(oldIdObject);
 
-                            if (ioEntities.ContainsKey(oldId))
+                            if (pasteData.IoEntities.ContainsKey(oldId))
                             {
                                 if (ioEntity.inputs[index] == null)
                                     ioEntity.inputs[index] = new IOEntity.IOSlot();
 
-                                Dictionary<string, object> ioConnection = ioEntities[oldId];
+                                Dictionary<string, object> ioConnection = pasteData.IoEntities[oldId];
 
                                 object temp;
 
@@ -1228,12 +1245,12 @@ namespace Oxide.Plugins
                             var output = outputs[index] as Dictionary<string, object>;
                             var connectedOldId = Convert.ToUInt32(output["connectedID"]);
 
-                            if (ioEntities.ContainsKey(connectedOldId))
+                            if (pasteData.IoEntities.ContainsKey(connectedOldId))
                             {
                                 if (ioEntity.outputs[index] == null)
                                     ioEntity.outputs[index] = new IOEntity.IOSlot();
 
-                                Dictionary<string, object> ioConnection = ioEntities[connectedOldId];
+                                Dictionary<string, object> ioConnection = pasteData.IoEntities[connectedOldId];
 
                                 object temp;
 
@@ -1261,9 +1278,9 @@ namespace Oxide.Plugins
                                             var linePoint = linePoints[index2] as Dictionary<string, object>;
                                             // Get the relative positions (normalized) and convert it to an actual position.
                                             var normalizedPos =
-                                                rotation * (new Vector3(Convert.ToSingle(linePoint["x"]),
-                                                    Convert.ToSingle(linePoint["y"]) + heightAdj,
-                                                    Convert.ToSingle(linePoint["z"]))) + startPos;
+                                                pasteData.QuaternionRotation * (new Vector3(Convert.ToSingle(linePoint["x"]),
+                                                    Convert.ToSingle(linePoint["y"]) + pasteData.HeightAdj,
+                                                    Convert.ToSingle(linePoint["z"]))) + pasteData.StartPos;
                                             ioEntity.outputs[index].linePoints[index2] = normalizedPos;
                                         }
                                     }
@@ -1274,7 +1291,15 @@ namespace Oxide.Plugins
                     }
                 }
 
-                SendReply(player, "Pasting complete.");
+                if (player != null)
+                    SendReply(player, Lang("PASTE_SUCCESS", player.UserIDString));
+                else
+                    Puts(Lang("PASTE_SUCCESS"));
+
+                if (!lastPastes.ContainsKey(player?.UserIDString ?? serverID))
+                    lastPastes[player?.UserIDString ?? serverID] = new Stack<List<BaseEntity>>();
+
+                lastPastes[player?.UserIDString ?? serverID].Push(pasteData.PastedEntities);
             }
         }
 
@@ -1312,7 +1337,7 @@ namespace Oxide.Plugins
             return preloaddata;
         }
 
-        private object TryCopy(Vector3 sourcePos, Vector3 sourceRot, string filename, float RotationCorrection, string[] args)
+        private object TryCopy(Vector3 sourcePos, Vector3 sourceRot, string filename, float RotationCorrection, string[] args, BasePlayer player)
         {
             bool saveShare = config.Copy.Share, saveTree = config.Copy.Tree, eachToEach = config.Copy.EachToEach;
             CopyMechanics copyMechanics = CopyMechanics.Proximity;
@@ -1382,7 +1407,7 @@ namespace Oxide.Plugins
                 }
             }
 
-            return Copy(sourcePos, sourceRot, filename, RotationCorrection, copyMechanics, radius, saveTree, saveShare, eachToEach);
+            return Copy(sourcePos, sourceRot, filename, RotationCorrection, copyMechanics, radius, saveTree, saveShare, eachToEach, player);
         }
 
         private void TryCopySlots(BaseEntity ent, IDictionary<string, object> housedata, bool saveShare)
@@ -1702,8 +1727,6 @@ namespace Oxide.Plugins
                 SendReply(player, (string)success);
                 return;
             }
-
-            SendReply(player, Lang("COPY_SUCCESS", player.UserIDString, savename));
         }
 
         [ChatCommand("paste")]
@@ -1728,13 +1751,6 @@ namespace Oxide.Plugins
                 SendReply(player, (string)success);
                 return;
             }
-
-            if (!lastPastes.ContainsKey(player.UserIDString))
-                lastPastes[player.UserIDString] = new Stack<List<BaseEntity>>();
-
-            lastPastes[player.UserIDString].Push((List<BaseEntity>)success);
-
-            SendReply(player, Lang("PASTE_SUCCESS", player.UserIDString));
         }
 
 		[ChatCommand("list")]
@@ -1774,8 +1790,6 @@ namespace Oxide.Plugins
 
             if (result is string)
                 SendReply(player, (string)result);
-            else
-                SendReply(player, Lang("PASTEBACK_SUCCESS", player.UserIDString));
         }
 
         [ChatCommand("undo")]
@@ -1787,12 +1801,7 @@ namespace Oxide.Plugins
                 return;
             }
 
-            var result = cmdUndo(player.UserIDString, args);
-
-            if (result is string)
-                SendReply(player, (string)result);
-            else
-                SendReply(player, Lang("UNDO_SUCCESS", player.UserIDString));
+            cmdUndo(player.UserIDString, args);
         }
 
         //Console commands [From Server]
@@ -1800,30 +1809,24 @@ namespace Oxide.Plugins
         [ConsoleCommand("pasteback")]
         private void cmdConsolePasteBack(ConsoleSystem.Arg arg)
         {
-            if (!arg.IsRcon)
+            if (!arg.IsAdmin)
                 return;
 
-            var result = cmdPasteBack(null, arg.Args);
+            var result = cmdPasteBack(arg.Player(), arg.Args);
 
             if (result is string)
                 SendReply(arg, (string)result);
-            else
-                SendReply(arg, Lang("PASTEBACK_SUCCESS", null));
         }
 
         [ConsoleCommand("undo")]
         private void cmdConsoleUndo(ConsoleSystem.Arg arg)
         {
-            if (!arg.IsRcon)
+            if (!arg.IsAdmin)
                 return;
 
-            var result = cmdUndo(serverID, arg.Args);
+            BasePlayer player = arg.Player();
 
-            if (result is string)
-                SendReply(arg, (string)result);
-            else
-                SendReply(arg, Lang("UNDO_SUCCESS", null));
-
+            cmdUndo(player == null ? serverID : player.UserIDString, arg.Args);
         }
 
 		//Replace between old ItemID to new ItemID
@@ -2311,7 +2314,7 @@ namespace Oxide.Plugins
 
         public class CopyData
         {
-            public BasePlayer player;
+            public BasePlayer Player;
             public Stack<Vector3> CheckFrom = new Stack<Vector3>();
             public HashSet<BaseEntity> HouseList = new HashSet<BaseEntity>();
             public List<object> RawData = new List<object>();
@@ -2326,6 +2329,24 @@ namespace Oxide.Plugins
             public bool SaveShare;
             public CopyMechanics CopyMechanics;
             public bool EachToEach;
+            public uint BuildingID = 0;
+        }
+
+        public class PasteData
+        {
+            public ICollection<Dictionary<string, object>> Entities;
+            public List<BaseEntity> PastedEntities = new List<BaseEntity>();
+            public Dictionary<uint, Dictionary<string, object>> IoEntities =
+                new Dictionary<uint, Dictionary<string, object>>();
+            public BasePlayer Player;
+            public List<StabilityEntity> StabilityEntities = new List<StabilityEntity>();
+            public Quaternion QuaternionRotation;
+
+            public Vector3 StartPos;
+            public float HeightAdj;
+            public bool Stability;
+            public bool IsItemReplace;
+
             public uint BuildingID = 0;
         }
     }
