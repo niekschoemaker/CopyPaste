@@ -1,5 +1,8 @@
 ﻿// Reference: System.Drawing
 
+//If debug is defined it will add a stopwatch to the paste and copydata which can be used to profile copying and pasting.
+//#define DEBUG
+
 using Facepunch;
 using Graphics = System.Drawing.Graphics;
 using ImageFormat = System.Drawing.Imaging.ImageFormat;
@@ -37,7 +40,7 @@ namespace Oxide.Plugins
 					 , subDirectory 		= "copypaste/";
 
         private const int CopyBatchSize = 250;
-        private const int PasteBatchSize = 50;
+        private const int PasteBatchSize = 100;
         private const int UndoBatchSize = 50;
 
         private Dictionary<string, Stack<List<BaseEntity>>> lastPastes = new Dictionary<string, Stack<List<BaseEntity>>>();
@@ -432,7 +435,8 @@ namespace Oxide.Plugins
                 datafile["entities"] = copyData.RawData;
                 datafile["protocol"] = new Dictionary<string, object>
                 {
-                    {"items", 2}
+                    {"items", 2},
+                    {"version",  Version}
                 };
 
                 Interface.Oxide.DataFileSystem.SaveDatafile(path);
@@ -794,7 +798,7 @@ namespace Oxide.Plugins
 			
 			bool isItemReplace = !protocol.ContainsKey("items");
 
-            var eulerRotation = new Vector3(0f, RotationCorrection, 0f);
+            var eulerRotation = new Vector3(0f, RotationCorrection * 57.2958f, 0f);
             var quaternionRotation = Quaternion.Euler(eulerRotation);
 
             var pasteData = new PasteData()
@@ -849,7 +853,7 @@ namespace Oxide.Plugins
                     entity.OwnerID = pasteData.Player.userID;
                 }
 
-                BuildingBlock buildingBlock = entity.GetComponentInParent<BuildingBlock>();
+                BuildingBlock buildingBlock = entity as BuildingBlock;
 
                 if (buildingBlock != null)
                 {
@@ -860,7 +864,7 @@ namespace Oxide.Plugins
 
                 }
 
-                DecayEntity decayEntity = entity.GetComponentInParent<DecayEntity>();
+                DecayEntity decayEntity = entity as DecayEntity;
 
                 if (decayEntity != null)
                 {
@@ -870,7 +874,7 @@ namespace Oxide.Plugins
                     decayEntity.AttachToBuilding(pasteData.BuildingID);
                 }
 
-                StabilityEntity stabilityEntity = entity.GetComponentInParent<StabilityEntity>();
+                StabilityEntity stabilityEntity = entity as StabilityEntity;
 
                 if (stabilityEntity != null)
                 {
@@ -884,14 +888,14 @@ namespace Oxide.Plugins
                 entity.skinID = skinid;
                 entity.Spawn();
 
-                var baseCombat = entity.GetComponentInParent<BaseCombatEntity>();
+                var baseCombat = entity as BaseCombatEntity;
 
                 if (baseCombat != null)
                     baseCombat.ChangeHealth(baseCombat.MaxHealth());
 
                 pasteData.PastedEntities.AddRange(TryPasteSlots(entity, data));
 
-                var box = entity.GetComponentInParent<StorageContainer>();
+                var box = entity as StorageContainer;
 
                 if (box != null)
                 {
@@ -991,7 +995,7 @@ namespace Oxide.Plugins
                         locker.equippingActive = false;
                 }
 
-                var sign = entity.GetComponentInParent<Signage>();
+                var sign = entity as Signage;
 
                 if (sign != null && data.ContainsKey("sign"))
                 {
@@ -1010,7 +1014,7 @@ namespace Oxide.Plugins
                     sign.SendNetworkUpdate();
                 }
 
-                var sleepingBag = entity.GetComponentInParent<SleepingBag>();
+                var sleepingBag = entity as SleepingBag;
 
                 if (sleepingBag != null && data.ContainsKey("sleepingbag"))
                 {
@@ -1021,7 +1025,7 @@ namespace Oxide.Plugins
                     sleepingBag.SetPublic(Convert.ToBoolean(bagData["isPublic"]));
                 }
 
-                var autoturret = entity.GetComponentInParent<AutoTurret>();
+                var autoturret = entity as AutoTurret;
 
                 if (autoturret != null)
                 {
@@ -1037,7 +1041,7 @@ namespace Oxide.Plugins
                     autoturret.SendNetworkUpdate(BasePlayer.NetworkQueue.Update);
                 }
 
-                var cupboard = entity.GetComponentInParent<BuildingPrivlidge>();
+                var cupboard = entity as BuildingPrivlidge;
 
                 if (cupboard != null)
                 {
@@ -1064,7 +1068,7 @@ namespace Oxide.Plugins
                     cupboard.SendNetworkUpdate(BasePlayer.NetworkQueue.Update);
                 }
 
-                var vendingMachine = entity.GetComponentInParent<VendingMachine>();
+                var vendingMachine = entity as VendingMachine;
 
                 if (vendingMachine != null && data.ContainsKey("vendingmachine"))
                 {
@@ -1111,7 +1115,8 @@ namespace Oxide.Plugins
                     vendingMachine.FullUpdate();
                 }
 
-                var ioEntity = entity.GetComponentInParent<IOEntity>();
+                var ioEntity = entity as IOEntity;
+
                 if (ioEntity != null)
                 {
                     var ioData = new Dictionary<string, object>();
@@ -1124,34 +1129,12 @@ namespace Oxide.Plugins
                     ioData.Add("entity", ioEntity);
                     ioData.Add("newId", ioEntity.net.ID);
 
-                    var electricalBranch = ioEntity.GetComponentInParent<ElectricalBranch>();
-                    if (electricalBranch != null && ioData.ContainsKey("branchAmount"))
+                    object oldIdObject = 0;
+                    if (ioData.TryGetValue("oldID", out oldIdObject))
                     {
-                        electricalBranch.branchAmount = Convert.ToInt32(ioData["branchAmount"]);
+                        var oldId = Convert.ToUInt32(oldIdObject);
+                        pasteData.IoEntities.Add(oldId, ioData);
                     }
-
-                    // Realized counter.targetCounterNumber is private, leaving it in in case signature changes.
-                    /*var counter = ioEntity.GetComponentInParent<PowerCounter>();
-                    if (counter != null)
-                    {
-                        counter.targetCounterNumber = Convert.ToInt32(ioData["targetNumber"]);
-                    }*/
-
-                    var timer = ioEntity.GetComponentInParent<TimerSwitch>();
-                    if (timer != null && ioData.ContainsKey("timerLength"))
-                    {
-                        timer.timerLength = Convert.ToInt32(ioData["timerLength"]);
-                    }
-
-                    var doorManipulator = ioEntity.GetComponentInParent<CustomDoorManipulator>();
-                    if (doorManipulator != null)
-                    {
-                        Door door = doorManipulator.FindDoor(true);
-                        doorManipulator.SetTargetDoor(door);
-                    }
-
-                    if(ioData.ContainsKey("oldID"))
-                        pasteData.IoEntities.Add(Convert.ToUInt32(ioData["oldID"]), ioData);
                 }
 
                 var flagsData = new Dictionary<string, object>();
@@ -1175,27 +1158,48 @@ namespace Oxide.Plugins
 
                 pasteData.PastedEntities.Add(entity);
             }
-            if(entities.Count > 0)
+
+            if (entities.Count > 0)
                 NextTick(() => PasteLoop(pasteData));
             else
             {
-                foreach (var entity in pasteData.StabilityEntities)
+                foreach (var ioData in pasteData.IoEntities.Values.ToArray())
                 {
-                    entity.grounded = false;
-                    entity.InitializeSupports();
-                    entity.UpdateStability();
-                }
-                foreach (var ioData in pasteData.IoEntities.Values)
-                {
-
                     if (!ioData.ContainsKey("entity"))
                         continue;
+
 
                     var ioEntity = ioData["entity"] as IOEntity;
 
                     List<object> inputs = null;
                     if (ioData.ContainsKey("inputs"))
                         inputs = ioData["inputs"] as List<object>;
+
+                    var electricalBranch = ioEntity as ElectricalBranch;
+                    if (electricalBranch != null && ioData.ContainsKey("branchAmount"))
+                    {
+                        electricalBranch.branchAmount = Convert.ToInt32(ioData["branchAmount"]);
+                    }
+
+                    // Realized counter.targetCounterNumber is private, leaving it in in case signature changes.
+                    /*var counter = ioEntity.GetComponentInParent<PowerCounter>();
+                    if (counter != null)
+                    {
+                        counter.targetCounterNumber = Convert.ToInt32(ioData["targetNumber"]);
+                    }*/
+
+                    var timer = ioEntity as TimerSwitch;
+                    if (timer != null && ioData.ContainsKey("timerLength"))
+                    {
+                        timer.timerLength = Convert.ToInt32(ioData["timerLength"]);
+                    }
+
+                    var doorManipulator = ioEntity as CustomDoorManipulator;
+                    if (doorManipulator != null)
+                    {
+                        Door door = doorManipulator.FindDoor(true);
+                        doorManipulator.SetTargetDoor(door);
+                    }
 
                     if (inputs != null && inputs.Count > 0)
                     {
@@ -1208,7 +1212,7 @@ namespace Oxide.Plugins
 
                             uint oldId = Convert.ToUInt32(oldIdObject);
 
-                            if (pasteData.IoEntities.ContainsKey(oldId))
+                            if (oldId != 0 && pasteData.IoEntities.ContainsKey(oldId))
                             {
                                 if (ioEntity.inputs[index] == null)
                                     ioEntity.inputs[index] = new IOEntity.IOSlot();
@@ -1217,20 +1221,12 @@ namespace Oxide.Plugins
 
                                 object temp;
 
-                                if (ioConnection.TryGetValue("newId", out temp))
-                                    ioEntity.inputs[index].connectedTo.entityRef.uid = Convert.ToUInt32(temp);
-
-                                if (ioConnection.TryGetValue("connectedToSlot", out temp))
-                                    ioEntity.inputs[index].connectedToSlot = Convert.ToInt32(temp);
-
-                                if (ioConnection.TryGetValue("niceName", out temp))
-                                    ioEntity.inputs[index].niceName = temp as string;
-
-                                if (ioConnection.TryGetValue("type", out temp))
-                                    ioEntity.inputs[index].type = (IOEntity.IOType)temp;
+                                if (ioConnection.ContainsKey("newId"))
+                                {
+                                    ioEntity.inputs[index].connectedTo.entityRef.uid =
+                                        Convert.ToUInt32(ioConnection["newId"]);
+                                }
                             }
-
-
                         }
                     }
 
@@ -1243,58 +1239,91 @@ namespace Oxide.Plugins
                         for (int index = 0; index < outputs.Count; index++)
                         {
                             var output = outputs[index] as Dictionary<string, object>;
-                            var connectedOldId = Convert.ToUInt32(output["connectedID"]);
+                            var oldId = Convert.ToUInt32(output["connectedID"]);
 
-                            if (pasteData.IoEntities.ContainsKey(connectedOldId))
+                            if (oldId != 0 && pasteData.IoEntities.ContainsKey(oldId))
                             {
                                 if (ioEntity.outputs[index] == null)
                                     ioEntity.outputs[index] = new IOEntity.IOSlot();
 
-                                Dictionary<string, object> ioConnection = pasteData.IoEntities[connectedOldId];
+                                Dictionary<string, object> ioConnection = pasteData.IoEntities[oldId];
 
-                                object temp;
+                                if (ioConnection.ContainsKey("newId"))
+                                {
+                                    var ioEntity2 = ioConnection["entity"] as IOEntity;
+                                    var connectedToSlot = Convert.ToInt32(output["connectedToSlot"]);
+                                    IOEntity.IOSlot ioOutput = ioEntity.outputs[index];
 
-                                if (ioConnection.TryGetValue("newId", out temp))
-                                    ioEntity.outputs[index].connectedTo.entityRef.uid = Convert.ToUInt32(temp);
+                                    ioOutput.connectedTo = new IOEntity.IORef();
+                                    ioOutput.connectedTo.Set(ioEntity2);
+                                    ioOutput.connectedToSlot = connectedToSlot;
+                                    ioOutput.connectedTo.Init();
 
-                                if (ioConnection.TryGetValue("connectedToSlot", out temp))
-                                    ioEntity.outputs[index].connectedToSlot = Convert.ToInt32(temp);
+                                    ioEntity2.inputs[connectedToSlot].connectedTo = new IOEntity.IORef();
+                                    ioEntity2.inputs[connectedToSlot].connectedTo.Set(ioEntity);
+                                    ioEntity2.inputs[connectedToSlot].connectedToSlot = index;
+                                    ioEntity2.inputs[connectedToSlot].connectedTo.Init();
 
-                                if (ioConnection.TryGetValue("niceName", out temp))
-                                    ioEntity.outputs[index].niceName = temp as string;
+                                    ioOutput.niceName = output["niceName"] as string;
 
-                                if (ioConnection.TryGetValue("type", out temp))
-                                    ioEntity.outputs[index].type = (IOEntity.IOType)temp;
+                                    ioOutput.type = (IOEntity.IOType) Convert.ToInt32(output["type"]);
+                                }
 
                                 if (output.ContainsKey("linePoints"))
                                 {
                                     var linePoints = output["linePoints"] as List<object>;
                                     if (linePoints != null)
                                     {
-                                        if (ioEntity.outputs[index].linePoints == null || ioEntity.outputs[index].linePoints.Length != linePoints.Count)
-                                            ioEntity.outputs[index].linePoints = new Vector3[linePoints.Count];
-                                        for (var index2 = 0; index2 < linePoints.Count; index2++)
+                                        List<Vector3> lineList = new List<Vector3>();
+                                        foreach (var point in linePoints)
                                         {
-                                            var linePoint = linePoints[index2] as Dictionary<string, object>;
+                                            var linePoint = point as Dictionary<string, object>;
                                             // Get the relative positions (normalized) and convert it to an actual position.
                                             var normalizedPos =
-                                                pasteData.QuaternionRotation * (new Vector3(Convert.ToSingle(linePoint["x"]),
+                                                pasteData.QuaternionRotation * (new Vector3(
+                                                    Convert.ToSingle(linePoint["x"]),
                                                     Convert.ToSingle(linePoint["y"]) + pasteData.HeightAdj,
                                                     Convert.ToSingle(linePoint["z"]))) + pasteData.StartPos;
-                                            ioEntity.outputs[index].linePoints[index2] = normalizedPos;
+                                            lineList.Add(normalizedPos);
                                         }
+
+                                        ioEntity.outputs[index].linePoints = lineList.ToArray();
                                     }
                                 }
-                                ioEntity.MarkDirtyForceUpdateOutputs();
                             }
                         }
                     }
                 }
 
-                if (player != null)
+                pasteData.IoEntities.Values.ToList().ForEach(ioData =>
+                {
+                    var ioEntity = ioData["entity"] as IOEntity;
+
+                    if (ioEntity != null)
+                    {
+                        ioEntity.MarkDirtyForceUpdateOutputs();
+                        ioEntity.SendNetworkUpdate(BasePlayer.NetworkQueue.Update);
+                    }
+                });
+
+                    foreach (var entity in pasteData.StabilityEntities)
+                    {
+                        entity.grounded = false;
+                        entity.InitializeSupports();
+                        entity.UpdateStability();
+                    }
+
+                    if (player != null)
+                {
                     SendReply(player, Lang("PASTE_SUCCESS", player.UserIDString));
+#if DEBUG
+                    SendReply(player, $"Stopwatch took: {pasteData.Sw.Elapsed.TotalMilliseconds} ms");
+#endif
+                }
                 else
+                {
                     Puts(Lang("PASTE_SUCCESS"));
+                }
 
                 if (!lastPastes.ContainsKey(player?.UserIDString ?? serverID))
                     lastPastes[player?.UserIDString ?? serverID] = new Stack<List<BaseEntity>>();
@@ -2330,6 +2359,10 @@ namespace Oxide.Plugins
             public CopyMechanics CopyMechanics;
             public bool EachToEach;
             public uint BuildingID = 0;
+
+#if DEBUG
+            public Stopwatch Sw = new Stopwatch();
+#endif
         }
 
         public class PasteData
@@ -2348,6 +2381,10 @@ namespace Oxide.Plugins
             public bool IsItemReplace;
 
             public uint BuildingID = 0;
+
+#if DEBUG
+            public Stopwatch Sw = new Stopwatch();
+#endif
         }
     }
 }
