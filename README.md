@@ -12,8 +12,8 @@ Syntax - Options:
 * **each true/false** - *default: true* - Check radius from each entity
 * **method building/proximity** - *default: proximity* - Choose the type of mechanics to use to copy a building - **Building**: Only copy the current building. **Proximity**: Copy all blocks close to the building. (Some deployables can be missing with Building also use proximity in these cases)
 * **radius XX** - *default: 3* - Sets the radius to search for entities around each building parts & deployables
-* **share true/false** - *default: false* - Set to copy data CodeLocks, BuildingPrivileges, SleepingBag
-* ** tree true/false** - *default: false* - Set to copy trees and resources
+* **share true/false** - *default: true* - Set to copy data CodeLocks, BuildingPrivileges, SleepingBag
+* **tree true/false** - *default: false* - Set to copy trees and resources
 
 
 **Paste**
@@ -26,13 +26,13 @@ Short example: /paste home a true s false
 
 Syntax - Options:
 
-* **auth true/false** - *default: false* - Authorize player in all cupboards
+* **auth true/false** - *default: true* - Authorize player in all cupboards
 * **blockcollision XX** - *default: 0* - Checks in XX radius if there is something that could collide with the new building, if so, blocks the build. 0 is to deactivate the detection.
 * **deployables true/false** - *default: true* - Set to paste the deployables
 * **height XX **- *default: 0 *- Adjust height to paste
 * **inventories true/false** - *default: true* - Set to paste the inventories
 * **stability true/false** - *default: true* - Set false to ignore stability system
-* **vending true/false** - *default: false* - Set to paste sellings, name and broadcasting for Vending Machine
+* **vending true/false** - *default: true* - Set to paste sellings, name and broadcasting for Vending Machine
 
 **Pasteback**
 
