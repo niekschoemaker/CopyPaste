@@ -61,7 +61,27 @@ Syntax - Options:
 * copypaste.paste
 * copypaste.pasteback
 * copypaste.undo
-
+# Config
+Default Config (Simply deleting file will generate this):
+```
+{
+  "Amount of entities to paste per batch. Use to tweak performance impact of pasting": 15,
+  "Amount of entities to copy per batch. Use to tweak performance impact of copying": 100,
+  "Amount of entities to undo per batch. Use to tweak performance impact of undoing": 15,
+  "Copy Options": {
+    "Check radius from each entity (true/false)": true,
+    "Share (true/false)": true,
+    "Tree (true/false)": false
+  },
+  "Paste Options": {
+    "Auth (true/false)": true,
+    "Deployables (true/false)": true,
+    "Inventories (true/false)": true,
+    "Vending Machines (true/false)": true,
+    "Stability (true/false)": true
+  }
+}
+```
 # API
 ```
 object TryCopyFromSteamID(ulong userID, string filename, string[] args)
