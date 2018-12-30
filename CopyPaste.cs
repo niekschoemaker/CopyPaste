@@ -21,7 +21,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Copy Paste", "Reneb & MiRror & Misstake", "4.1.5", ResourceId = 716)]
+    [Info("Copy Paste", "Reneb & MiRror & Misstake", "4.1.6", ResourceId = 716)]
     [Description("Copy and paste buildings to save them or move them")]
 	
     public class CopyPaste : RustPlugin
@@ -97,15 +97,15 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Paste Options")]
             public PasteOptions Paste { get; set; }
 
-            [JsonProperty(PropertyName = "Amount of entities to paste per batch. Use to tweak performance impact of pasting.")]
+            [JsonProperty(PropertyName = "Amount of entities to paste per batch. Use to tweak performance impact of pasting")]
             [DefaultValue(15)]
             public int PasteBatchSize = 15;
 
-            [JsonProperty(PropertyName = "Amount of entities to copy per batch. Use to tweak performance impact of copying.")]
+            [JsonProperty(PropertyName = "Amount of entities to copy per batch. Use to tweak performance impact of copying")]
             [DefaultValue(100)]
             public int CopyBatchSize = 100;
 
-            [JsonProperty(PropertyName = "Amount of entities to undo per batch. Use to tweak performance impact of undoing.")]
+            [JsonProperty(PropertyName = "Amount of entities to undo per batch. Use to tweak performance impact of undoing")]
             [DefaultValue(15)]
             public int UndoBatchSize = 15;
 
