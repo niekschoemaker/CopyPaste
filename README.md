@@ -30,9 +30,11 @@ Syntax - Options:
 * **blockcollision XX** - *default: 0* - Checks in XX radius if there is something that could collide with the new building, if so, blocks the build. 0 is to deactivate the detection.
 * **deployables true/false** - *default: true* - Set to paste the deployables
 * **height XX **- *default: 0 *- Adjust height to paste
+* **autoheight true/false** - *default: true* - Wether or not to try to find best height for building
 * **inventories true/false** - *default: true* - Set to paste the inventories
 * **stability true/false** - *default: true* - Set false to ignore stability system
 * **vending true/false** - *default: true* - Set to paste sellings, name and broadcasting for Vending Machine
+* **entityowner true/false** - *default : true* - Copy entity ownership of building.
 
 **Pasteback**
 
