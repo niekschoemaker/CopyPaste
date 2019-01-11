@@ -93,6 +93,9 @@ object TryPasteFromVector3(Vector3 pos, float rotationCorrection, string filenam
 
 Returns string on failure and true on success
 
+When Copy is done calls `OnCopyFinished(List<object> rawData)`
+When Pasting is done calls `OnPasteFinished(List<BaseEntity> pastedEntities)`
+
 Example:
 ```
 bool BuyBuilding(BasePlayer player, string buildingName)
