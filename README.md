@@ -70,6 +70,7 @@ Default Config (Simply deleting file will generate this):
   "Amount of entities to paste per batch. Use to tweak performance impact of pasting": 15,
   "Amount of entities to copy per batch. Use to tweak performance impact of copying": 100,
   "Amount of entities to undo per batch. Use to tweak performance impact of undoing": 15,
+  "Enable data saving feature": true,
   "Copy Options": {
     "Check radius from each entity (true/false)": true,
     "Share (true/false)": true,
