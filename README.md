@@ -54,7 +54,7 @@ Syntax - Options:
 **Other**
 
 /undo - Removes what you've last pasted
-/list - List of stuctures (from folder oxide/data/copypaste)
+/copylist - List of stuctures (from folder oxide/data/copypaste)
 
 # Permissions
 
